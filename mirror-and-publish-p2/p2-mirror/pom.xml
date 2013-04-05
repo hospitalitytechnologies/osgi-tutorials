@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>ru.has-dev.tutorials.osgi</groupId>
+	<artifactId>p2-repo-mirror</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	<name>P2 Repository Mirror</name>
+
+	<parent>
+		<groupId>ru.has-dev.tutorials.osg</groupId>
+		<artifactId>p2-repo-mirror-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+
+	<properties>
+		<eclipseLocation>/Applications/Java/eclipse-rcp-juno-SR1-macosx-cocoa-x86_64/plugins/org.eclipse.equinox.launcher_1.3.0.v20120522-1813.jar</eclipseLocation>
+		<p2Source>${project.basedir}/target/source</p2Source>
+		<p2Target>${project.basedir}/target/p2FinalRepo</p2Target>
+	</properties>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.commons</groupId>
+									<artifactId>commons-lang3</artifactId>
+									<version>3.0</version>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.basedir}/target/source/plugins</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho.extras</groupId>
+				<artifactId>tycho-p2-extras-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>mirror-p2-repo</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>mirror</goal>
+						</goals>
+						<configuration>
+							<source>
+								<repository>
+									<url>http://download.eclipse.org/releases/staging/</url>
+									<layout>p2</layout>
+								</repository>
+							</source>
+							<ius>
+								<iu>
+									<query>
+										<expression>id == $0 &amp;&amp; version ~= range('[3.9.0,4.0.0)')</expression>
+										<parameters>org.eclipse.osgi</parameters>
+									</query>
+								</iu>
+							</ius>
+							<destination>${project.build.directory}/source</destination>
+							<followStrictOnly>true</followStrictOnly>
+							<includeOptional>false</includeOptional>
+							<includeFeatures>false</includeFeatures>
+							<includeNonGreedy>true</includeNonGreedy>
+							<latestVersionOnly>true</latestVersionOnly>
+							<compress>true</compress>
+							<append>true</append>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>p2-create-final-repo</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<echo message="Clear features from mirrored repos..." />
+								<delete dir="${project.build.directory}/source/features" />
+								<echo message="Publich new repos..." />
+								<java jar="${eclipseLocation}" fork='true' failonerror="true">
+									<arg
+										line="-XstartOnFirstThread -debug -consolelog -nosplash -verbose -application org.eclipse.equinox.p2.publisher.FeaturesAndBundlesPublisher -metadataRepository file:${p2Target} -artifactRepository file:${p2Target} -source ${p2Source} -append -publishArtifacts" />
+								</java>
+								<echo message="Create category P2 site..." />
+								<java jar="${eclipseLocation}" fork='true' failonerror="true">
+									<arg
+										line="-XstartOnFirstThread -debug -consolelog -nosplash -verbose -application org.eclipse.equinox.p2.publisher.CategoryPublisher -metadataRepository file:${p2Target} -categoryDefinition file:${project.basedir}/category.xml" />
+								</java>
+								<echo message="Done" />
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
